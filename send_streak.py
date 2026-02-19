@@ -99,7 +99,21 @@ def send_message(config, video_url):
 
         # Wait for the chat/DM interface to load
         page.wait_for_url("**/messages**", timeout=15000)
+        page.wait_for_load_state("networkidle", timeout=15000)
         check_login(page)
+        page.screenshot(path="screenshot_messages.png")
+        print(f"Messages page loaded: {page.url}")
+
+        # The messages page may show a conversation list — find and click the
+        # friend's conversation to open the chat thread.
+        convo = page.locator(f'[data-e2e="chat-item"]').filter(has_text=friend).or_(
+            page.locator(f'[href*="{friend}"]')
+        )
+        if convo.first.is_visible(timeout=5000):
+            convo.first.click()
+            page.wait_for_load_state("networkidle", timeout=10000)
+            page.screenshot(path="screenshot_chat.png")
+            print("Opened conversation thread")
 
         # Find the message input and type the video URL
         msg_input = page.locator('[data-e2e="message-input"]').or_(
@@ -107,7 +121,7 @@ def send_message(config, video_url):
         ).or_(
             page.locator('[contenteditable="true"]')
         )
-        msg_input.first.click(timeout=10000)
+        msg_input.first.click(timeout=15000)
         msg_input.first.fill(video_url)
         print(f"Typed message: {video_url}")
 
@@ -117,10 +131,11 @@ def send_message(config, video_url):
 
         # Brief wait to confirm message appears
         page.wait_for_timeout(3000)
+        page.screenshot(path="screenshot_sent.png")
 
         # Verify the message was sent by checking it appears in chat
         sent = page.locator(f'text="{video_url}"').or_(
-            page.locator(f'[data-e2e="chat-message"]').filter(has_text=video_url)
+            page.locator('[data-e2e="chat-message"]').filter(has_text=video_url)
         )
         if sent.first.is_visible(timeout=5000):
             print("Message verified in chat")

@@ -30,6 +30,14 @@ jobs:
           TIKTOK_SESSION: ${{ secrets.TIKTOK_SESSION }}
         run: python send_streak.py
 
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: screenshot_*.png
+          if-no-files-found: ignore
+
       - name: Commit updated streak state
         run: |
           git config user.name "github-actions[bot]"
