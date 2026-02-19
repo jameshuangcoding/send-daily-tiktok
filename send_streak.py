@@ -1,10 +1,3 @@
-"""
-Daily TikTok streak sender.
-
-Sends a TikTok video URL as a DM to a friend via Playwright browser automation.
-Designed to run in GitHub Actions on a daily cron schedule.
-"""
-
 import base64
 import json
 import os

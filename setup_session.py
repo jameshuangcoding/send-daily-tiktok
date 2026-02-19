@@ -1,18 +1,3 @@
-"""
-One-time local setup script.
-
-Converts a raw Cookie header string (from Chrome DevTools) into a
-Playwright session file, then prints the base64 value for GitHub Secrets.
-
-Steps:
-  1. Go to https://www.tiktok.com in Chrome (logged in)
-  2. Open DevTools → Network tab
-  3. Click any request to tiktok.com
-  4. Find Request Headers → Cookie → copy the entire value
-  5. Paste it into a file called cookies.txt in this directory
-  6. Run: python setup_session.py
-"""
-
 import base64
 import json
 from pathlib import Path
