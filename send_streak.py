@@ -75,45 +75,26 @@ def check_login(page):
 def send_message(config, video_url):
     """Automate sending a DM via Playwright."""
     friend = config["friend_username"]
+    friend_display = config.get("friend_display_name", friend)
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(storage_state=str(SESSION_FILE))
         page = context.new_page()
 
-        # Navigate to friend's profile
-        profile_url = f"https://www.tiktok.com/@{friend}"
-        print(f"Navigating to {profile_url}")
-        page.goto(profile_url, wait_until="networkidle")
-        check_login(page)
-
-        # Click the message/DM icon on their profile
-        # TikTok profile pages have a message icon button
-        message_btn = page.locator('[data-e2e="message-icon"]').or_(
-            page.locator('a[href*="/messages"]')
-        ).or_(
-            page.get_by_role("link", name="Messages")
-        )
-        message_btn.first.click(timeout=10000)
-        print("Opened messages")
-
-        # Wait for the chat/DM interface to load
-        page.wait_for_url("**/messages**", timeout=15000)
-        page.wait_for_load_state("networkidle", timeout=15000)
+        # Go directly to the messages page
+        print("Navigating to messages")
+        page.goto("https://www.tiktok.com/messages", wait_until="networkidle")
         check_login(page)
         page.screenshot(path="screenshot_messages.png")
         print(f"Messages page loaded: {page.url}")
 
-        # The messages page may show a conversation list — find and click the
-        # friend's conversation to open the chat thread.
-        convo = page.locator(f'[data-e2e="chat-item"]').filter(has_text=friend).or_(
-            page.locator(f'[href*="{friend}"]')
-        )
-        if convo.first.is_visible(timeout=5000):
-            convo.first.click()
-            page.wait_for_load_state("networkidle", timeout=10000)
-            page.screenshot(path="screenshot_chat.png")
-            print("Opened conversation thread")
+        # Find the friend's conversation in the left sidebar and click it
+        convo = page.get_by_text(friend_display, exact=False).first
+        convo.click(timeout=15000)
+        page.wait_for_load_state("networkidle", timeout=15000)
+        page.screenshot(path="screenshot_chat.png")
+        print(f"Opened conversation with {friend_display}")
 
         # Find the message input and type the video URL
         msg_input = page.locator('[data-e2e="message-input"]').or_(
