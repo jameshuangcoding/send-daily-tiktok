@@ -90,7 +90,8 @@ def send_message(config, video_url):
         print(f"Messages page loaded: {page.url}")
 
         # Find the friend's conversation in the left sidebar and click it
-        convo = page.get_by_text(friend_display, exact=False).first
+        convo = page.locator('[data-e2e="chat-list-item"]').filter(has_text=friend_display).first
+        page.screenshot(path="screenshot_before_click.png")
         convo.click(timeout=15000)
         page.wait_for_load_state("networkidle", timeout=15000)
         page.screenshot(path="screenshot_chat.png")
