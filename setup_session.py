@@ -1,41 +1,59 @@
 """
 One-time local setup script.
 
-Launches a headed browser so you can log into TikTok manually.
-After you close the browser, it saves the session and prints
-a base64-encoded string to paste into the TIKTOK_SESSION GitHub Secret.
+Converts a raw Cookie header string (from Chrome DevTools) into a
+Playwright session file, then prints the base64 value for GitHub Secrets.
+
+Steps:
+  1. Go to https://www.tiktok.com in Chrome (logged in)
+  2. Open DevTools → Network tab
+  3. Click any request to tiktok.com
+  4. Find Request Headers → Cookie → copy the entire value
+  5. Paste it into a file called cookies.txt in this directory
+  6. Run: python setup_session.py
 """
 
 import base64
 import json
 from pathlib import Path
 
-from playwright.sync_api import sync_playwright
-
 SESSION_FILE = Path("session_state.json")
+COOKIES_FILE = Path("cookies.txt")
+
+
+def parse_cookie_string(cookie_str: str) -> list:
+    cookies = []
+    for part in cookie_str.split(";"):
+        part = part.strip()
+        if "=" not in part:
+            continue
+        name, _, value = part.partition("=")
+        cookies.append({
+            "name": name.strip(),
+            "value": value.strip(),
+            "domain": ".tiktok.com",
+            "path": "/",
+            "expires": -1,
+            "httpOnly": False,
+            "secure": True,
+            "sameSite": "None",
+        })
+    return cookies
 
 
 def main():
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
-        context = browser.new_context()
-        page = context.new_page()
+    if not COOKIES_FILE.exists():
+        print(f"ERROR: {COOKIES_FILE} not found.")
+        print("Paste your Chrome DevTools Cookie header value into cookies.txt and re-run.")
+        return
 
-        page.goto("https://www.tiktok.com/login")
+    cookie_str = COOKIES_FILE.read_text().strip()
+    cookies = parse_cookie_string(cookie_str)
+    storage_state = {"cookies": cookies, "origins": []}
 
-        print("\n=== TikTok Session Setup ===")
-        print("1. Log into TikTok in the browser window that just opened.")
-        print("2. Once you're fully logged in and see your feed, come back here.")
-        input("\nPress Enter when you're logged in...")
+    SESSION_FILE.write_text(json.dumps(storage_state, indent=2))
+    print(f"Session saved to {SESSION_FILE} ({len(cookies)} cookies)")
 
-        # Save session state
-        storage = context.storage_state()
-        SESSION_FILE.write_text(json.dumps(storage))
-        print(f"\nSession saved to {SESSION_FILE}")
-
-        browser.close()
-
-    # Encode for GitHub Secret
     raw = SESSION_FILE.read_bytes()
     encoded = base64.b64encode(raw).decode()
 

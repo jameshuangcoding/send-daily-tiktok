@@ -1,4 +1,5 @@
 session_state.json
+cookies.txt
 __pycache__/
 *.pyc
 venv/
