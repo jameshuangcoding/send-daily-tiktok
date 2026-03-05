@@ -77,7 +77,8 @@ def send_message(config, video_url):
 
         # Go directly to the messages page
         print("Navigating to messages")
-        page.goto("https://www.tiktok.com/messages", wait_until="networkidle")
+        page.goto("https://www.tiktok.com/messages", wait_until="domcontentloaded")
+        page.wait_for_load_state("load", timeout=30000)
         check_login(page)
         page.screenshot(path="screenshot_messages.png")
         print(f"Messages page loaded: {page.url}")
@@ -86,7 +87,7 @@ def send_message(config, video_url):
         convo = page.locator('[data-e2e="chat-list-item"]').filter(has_text=friend_display).first
         page.screenshot(path="screenshot_before_click.png")
         convo.click(timeout=15000)
-        page.wait_for_load_state("networkidle", timeout=15000)
+        page.wait_for_load_state("load", timeout=15000)
         page.screenshot(path="screenshot_chat.png")
         print(f"Opened conversation with {friend_display}")
 
@@ -135,7 +136,17 @@ def main():
     video_url = pick_video_url(config, state)
     print(f"Selected video: {video_url}")
 
-    send_message(config, video_url)
+    max_attempts = 3
+    for attempt in range(1, max_attempts + 1):
+        try:
+            send_message(config, video_url)
+            break
+        except Exception as e:
+            print(f"Attempt {attempt}/{max_attempts} failed: {e}")
+            if attempt == max_attempts:
+                raise
+            import time
+            time.sleep(10)
 
     # Update state on success
     state["last_sent_date"] = today
