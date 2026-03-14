@@ -98,25 +98,22 @@ def send_message(config, video_url):
             page.locator('[contenteditable="true"]')
         )
         msg_input.first.click(timeout=15000)
-        msg_input.first.fill(video_url)
+        msg_input.first.press_sequentially(video_url, delay=50)
         print(f"Typed message: {video_url}")
 
         # Send the message (Enter key)
         msg_input.first.press("Enter")
         print("Sent message")
 
-        # Brief wait to confirm message appears
+        # Wait and verify the message appears in chat
         page.wait_for_timeout(3000)
         page.screenshot(path="screenshot_sent.png")
 
-        # Verify the message was sent by checking it appears in chat
-        sent = page.locator(f'text="{video_url}"').or_(
-            page.locator('[data-e2e="chat-message"]').filter(has_text=video_url)
+        sent = page.locator('[data-e2e="chat-message"]').filter(has_text=video_url).or_(
+            page.get_by_text(video_url, exact=False)
         )
-        if sent.first.is_visible(timeout=5000):
-            print("Message verified in chat")
-        else:
-            print("WARNING: Could not verify message in chat, but send was attempted")
+        if not sent.first.is_visible(timeout=5000):
+            raise RuntimeError("Message not found in chat after sending — it may not have been delivered.")
 
         browser.close()
 
