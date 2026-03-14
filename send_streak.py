@@ -31,15 +31,14 @@ def today_str(timezone):
     return datetime.now(tz).strftime("%Y-%m-%d")
 
 
-def pick_video_url(config, state):
-    urls = config["video_urls"]
-    last_url = state.get("last_video_url")
+def pick_message(config, state):
+    messages = config["messages"]
+    last = state.get("last_message")
 
-    # Avoid repeating the last URL if there are multiple options
-    if last_url and len(urls) > 1:
-        candidates = [u for u in urls if u != last_url]
+    if last and len(messages) > 1:
+        candidates = [m for m in messages if m != last]
     else:
-        candidates = urls
+        candidates = messages
 
     return random.choice(candidates)
 
@@ -65,7 +64,7 @@ def check_login(page):
         sys.exit(1)
 
 
-def send_message(config, video_url):
+def send_message(config, message):
     """Automate sending a DM via Playwright."""
     friend = config["friend_username"]
     friend_display = config.get("friend_display_name", friend)
@@ -83,6 +82,9 @@ def send_message(config, video_url):
         page.screenshot(path="screenshot_messages.png")
         print(f"Messages page loaded: {page.url}")
 
+        # Wait for conversation list to finish loading (past skeleton state)
+        page.locator('[data-e2e="chat-list-item"]').first.wait_for(state="visible", timeout=15000)
+
         # Find the friend's conversation in the left sidebar and click it
         convo = page.locator('[data-e2e="chat-list-item"]').filter(has_text=friend_display).first
         page.screenshot(path="screenshot_before_click.png")
@@ -98,8 +100,8 @@ def send_message(config, video_url):
             page.locator('[contenteditable="true"]')
         )
         msg_input.first.click(timeout=15000)
-        msg_input.first.press_sequentially(video_url, delay=50)
-        print(f"Typed message: {video_url}")
+        msg_input.first.press_sequentially(message, delay=50)
+        print(f"Typed message: {message}")
 
         # Send the message (Enter key)
         msg_input.first.press("Enter")
@@ -109,9 +111,7 @@ def send_message(config, video_url):
         page.wait_for_timeout(3000)
         page.screenshot(path="screenshot_sent.png")
 
-        sent = page.locator('[data-e2e="chat-message"]').filter(has_text=video_url).or_(
-            page.get_by_text(video_url, exact=False)
-        )
+        sent = page.get_by_text(message, exact=False)
         if not sent.first.is_visible(timeout=5000):
             raise RuntimeError("Message not found in chat after sending — it may not have been delivered.")
 
@@ -130,13 +130,13 @@ def main():
 
     restore_session()
 
-    video_url = pick_video_url(config, state)
-    print(f"Selected video: {video_url}")
+    message = pick_message(config, state)
+    print(f"Selected message: {message}")
 
     max_attempts = 3
     for attempt in range(1, max_attempts + 1):
         try:
-            send_message(config, video_url)
+            send_message(config, message)
             break
         except Exception as e:
             print(f"Attempt {attempt}/{max_attempts} failed: {e}")
@@ -147,7 +147,7 @@ def main():
 
     # Update state on success
     state["last_sent_date"] = today
-    state["last_video_url"] = video_url
+    state["last_message"] = message
     save_state(state)
     print(f"Streak state updated: sent on {today}")
 
